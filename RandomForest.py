@@ -27,10 +27,11 @@ if __name__ == "__main__":
     y_pred_classif = RF_classif.predict(X_test_processed)
     y_pred_classif_proba = RF_classif.predict_proba(X_test_processed)
 
+    #ESTA PARTE COMENTADA É SE QUISERMOS USAR A VALIDAÇÃO PARA ESCOLHER OS MELHORES HIPERPARÂMETROS(SE FOR ESSE O CASO, COMENTAR AS 3 LINHAS ACIMA E DESCOMENTAR O QUE ESTÁ PARA BAIXO ATÉ ÀS MÉTRICAS)
     #param_grid = {
-    #'n_estimators': [50, 100, 200],
-    #'max_depth': [10, 20, None],
-    #'min_samples_split': [2, 5, 10]
+    #'n_estimators': [50, 100, 150, 200],
+    #'max_depth': [5, 10, 20, None],
+    #'min_samples_split': [1, 2, 5, 10]
     #}
 
     #grid_search = GridSearchCV(estimator=RF_classif, param_grid=param_grid, cv=5, scoring='accuracy')  # Usando validação cruzada dentro do grid search
