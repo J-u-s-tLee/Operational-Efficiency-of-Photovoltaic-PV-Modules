@@ -4,15 +4,22 @@ import torch.nn.functional as F
 from model import SharedFeedForwardNN
 import matplotlib.pyplot as plt
 
-def train_model(model, train_loader, val_loader, num_epochs, learning_rate, weight_decay, alfa, beta, save_dir):
+def train_model(model, train_loader, val_loader, num_epochs, learning_rate, weight_decay, alfa, beta, patience, save_dir, device):
 
+    model.to(device)
+    
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
     
     train_total_losses = []
     val_total_losses = []
     train_reg_losses = []
     train_class_losses = []
     val_accuracies = []
+
+    best_val_loss = float('inf')
+    patience_counter = 0
+    num_epochs_completed = 0
 
     for epoch in range(num_epochs):
         model.train()
@@ -22,6 +29,8 @@ def train_model(model, train_loader, val_loader, num_epochs, learning_rate, weig
         running_total_loss = 0.0
         
         for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+
             optimizer.zero_grad() 
 
             reg_output, logits = model(inputs)
@@ -57,6 +66,8 @@ def train_model(model, train_loader, val_loader, num_epochs, learning_rate, weig
     
         with torch.no_grad(): 
             for inputs, labels in val_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+
                 reg_output, logits = model(inputs)
 
                 labels = labels.to(torch.int64)
@@ -80,12 +91,30 @@ def train_model(model, train_loader, val_loader, num_epochs, learning_rate, weig
 
         print(f'Validation - Total Loss: {avg_total_loss_val:.4f}, Accuracy: {accuracy_val:.2f}%')
 
-    train_loss_avg = sum(train_total_losses) / num_epochs
-    val_loss_avg =  sum(train_total_losses)/ num_epochs
-    reg_loss_avg = sum(train_reg_losses) / num_epochs
-    class_loss_avg = sum(train_class_losses) / num_epochs
+        scheduler.step()
+        
+        num_epochs_completed += 1
 
-    val_acc_avg = sum(val_accuracies) / num_epochs
+        if avg_total_loss_val < best_val_loss:
+            best_val_loss = avg_total_loss_val
+            patience_counter = 0
+        
+            torch.save(model.state_dict(), f"{save_dir}/best_model.pth")
+            
+        else:
+            patience_counter += 1
+            
+            if patience_counter >= patience:
+                print("\nEarly stopping triggered. Stopping training.")
+                break
+
+
+    train_loss_avg = sum(train_total_losses) / num_epochs_completed
+    val_loss_avg =  sum(val_total_losses)/ num_epochs_completed
+    reg_loss_avg = sum(train_reg_losses) / num_epochs_completed
+    class_loss_avg = sum(train_class_losses) / num_epochs_completed
+
+    val_acc_avg = sum(val_accuracies) / num_epochs_completed
 
     print(f"\nAverage Total Loss (Train): {train_loss_avg:.4f}")
     print(f"Average Regression Loss (Train): {reg_loss_avg:.4f}")
@@ -93,11 +122,10 @@ def train_model(model, train_loader, val_loader, num_epochs, learning_rate, weig
     print(f"Average Total Loss (Validation): {val_loss_avg:.4f}")
     print(f"Average Accuracy (Validation): {val_acc_avg:.2f}%")
 
-    # Generate and save the plots
-    plot_metrics(train_total_losses, val_total_losses, train_reg_losses, train_class_losses, num_epochs, save_dir)
+    plot_metrics(train_total_losses, val_total_losses, train_reg_losses, train_class_losses, num_epochs_completed, save_dir)
 
 
-def plot_metrics(train_total_losses, val_total_losses, train_reg_losses, train_class_losses, num_epochs, save_dir):
+def plot_metrics(train_total_losses, val_total_losses, train_reg_losses, train_class_losses, num_epochs_completed, save_dir):
     
     max_loss = max(max(train_total_losses), max(val_total_losses))
     max_train_loss = max(max(train_reg_losses), max(train_class_losses))
@@ -109,7 +137,7 @@ def plot_metrics(train_total_losses, val_total_losses, train_reg_losses, train_c
     plt.title('Train Loss vs Validation Loss')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
-    plt.xlim(0, num_epochs-1)
+    plt.xlim(0, num_epochs_completed-1)
     plt.ylim(0, max_loss*1.1)  
     plt.legend()
     plt.grid()
@@ -122,7 +150,7 @@ def plot_metrics(train_total_losses, val_total_losses, train_reg_losses, train_c
     plt.plot(train_class_losses, label='Classification Loss (Train)', color='red')
     plt.title('Regression Loss vs Classification Loss')
     plt.xlabel('Epochs')
-    plt.xlim(0, num_epochs-1)
+    plt.xlim(0, num_epochs_completed-1)
     plt.ylim(0, max_train_loss*1.1) 
     plt.legend()
     plt.grid()
