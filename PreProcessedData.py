@@ -11,15 +11,24 @@ def split_labels(data):
     efficiency_level = data[["efficiency_level"]]
     return expected_efficiency, efficiency_level
 
-def split_data(data, column_1, column_2, test_size=0.3, random_state=42):
+def split_data(data, column_1, column_2, test_size=0.3, random_state=42, model="Linear Regression"):
     X = data.drop(columns=[column_1, column_2])
     y = data[[column_1, column_2]]
-    X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=test_size, random_state=random_state)
-    X_validation, X_test, y_validation, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=random_state)
-    y_train_1, y_train_2 = split_labels(y_train)
-    y_validation_1, y_validation_2 = split_labels(y_validation)
-    y_test_1, y_test_2 = split_labels(y_test)
-    return X_train, X_validation, X_test, y_train_1, y_validation_1, y_test_1, y_train_2, y_validation_2, y_test_2
+
+    if model == "Linear Regression": 
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+        y_train_1, _ = split_labels(y_train)
+        y_test_1, _ = split_labels(y_test)
+        
+        return X_train, X_test, y_train_1, y_test_1
+    else: 
+        X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=test_size, random_state=random_state)
+        X_validation, X_test, y_validation, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=random_state)
+        y_train_1, y_train_2 = split_labels(y_train)
+        y_validation_1, y_validation_2 = split_labels(y_validation)
+        y_test_1, y_test_2 = split_labels(y_test)
+
+        return X_train, X_validation, X_test, y_train_1, y_validation_1, y_test_1,  y_train_2, y_validation_2, y_test_2
 
 def encode_categorical(X_train, X_validation, X_test, categorical_cols):
     encoder = OneHotEncoder(sparse_output=False)
@@ -73,6 +82,16 @@ def combine_processed_data(X_train, X_validation, X_test,
     ], axis=1)
     
     return X_train_combined, X_validation_combined, X_test_combined
+
+def map_efficiency_level_to_numeric(data):
+    efficiency_mapping = {
+        'extremely_bad': 0,
+        'bad': 1,
+        'moderate' : 2,
+        'good': 3,
+    }
+    data['efficiency_level'] = data['efficiency_level'].map(efficiency_mapping)
+    return data
 
 def preprocess_data(X_train, X_validation, X_test, categorical_cols):
     numerical_cols = X_train.select_dtypes(include=['float64', 'int64']).columns.tolist()  # Ajuste conforme o tipo de dados
