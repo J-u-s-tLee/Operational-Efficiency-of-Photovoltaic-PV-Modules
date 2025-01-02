@@ -1,10 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 def aggregate_importance_by_original_features(importance_df, categorical_cols, numerical_cols, X_data, encoder, save_dir):
 
     expanded_categorical_cols = encoder.get_feature_names_out(categorical_cols)
-    
+
     feature_mapping = {}
     for cat_col in categorical_cols:
         matching_expanded_cols = [col for col in expanded_categorical_cols if col.startswith(cat_col + "_")]
@@ -26,14 +27,16 @@ def aggregate_importance_by_original_features(importance_df, categorical_cols, n
         'Feature': consolidated_importance.keys(),
         'Importance': consolidated_importance.values()
     }).sort_values(by='Importance', ascending=False)
-    
+
+    consolidated_df = consolidated_df.reset_index(drop=True)
+    consolidated_df.index = consolidated_df.index + 1  
+
+    print("\nFeature importance:")
+    print(consolidated_df)
+
     top_features = consolidated_df.head(2)['Feature'].tolist()
     print("\nTop 2 most important features:", top_features)
 
-    top_features_df = consolidated_df.head(2) 
-    for feature, importance in zip(top_features_df['Feature'], top_features_df['Importance']):
-        print(f"Feature: {feature}, Importance: {importance*100:.2f}%")
-    
 
     plt.figure(figsize=(8, 6))
     
@@ -49,7 +52,7 @@ def aggregate_importance_by_original_features(importance_df, categorical_cols, n
     plt.scatter(plot_features[0], plot_features[1], alpha=0.6, edgecolor='k')
     plt.xlabel(top_features[0])
     plt.ylabel(top_features[1])
-    plt.title('PCA analysis')
+    plt.title('PCA analysis - Oirginal features')
 
     plt.savefig(f"{save_dir}/pca.png")
 
