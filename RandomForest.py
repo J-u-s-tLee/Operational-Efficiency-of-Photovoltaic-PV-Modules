@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
+import sklearn.model_selection as model_selection
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor 
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, roc_auc_score, mean_squared_error, r2_score, mean_absolute_error
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, roc_auc_score, mean_squared_error, r2_score, balanced_accuracy_score, precision_score, recall_score, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import PredefinedSplit
 
 from data import load_data, split_data, preprocess_data
 
@@ -21,36 +22,54 @@ if __name__ == "__main__":
         X_train, X_validation, X_test, categorical_cols
     )
 
-    # RANDOM FOREST CLASSIFICATION MODEL 
+    X_train_val = pd.concat([X_train_processed, X_validation_processed])
+    y_train_val_1 = pd.concat([y_train_1, y_validation_1])
+    y_train_val_2 = pd.concat([y_train_2, y_validation_2])
+
+    y_train_val_1 = y_train_val_1.values.ravel()
+    y_train_val_2 = y_train_val_2.values.ravel()
+
+    split_index = [-1] * len(X_train) + [0] * len(X_validation)
+    predefined_split = PredefinedSplit(test_fold=split_index)
+
+    # RANDOM FOREST CLASSIFICATION MODEL
     RF_classif = RandomForestClassifier()
-    RF_classif.fit(X_train_processed, y_train_2.values.ravel())
-    y_pred_classif = RF_classif.predict(X_test_processed)
-    y_pred_classif_proba = RF_classif.predict_proba(X_test_processed)
 
-    #ESTA PARTE COMENTADA É SE QUISERMOS USAR A VALIDAÇÃO PARA ESCOLHER OS MELHORES HIPERPARÂMETROS(SE FOR ESSE O CASO, COMENTAR AS 3 LINHAS ACIMA E DESCOMENTAR O QUE ESTÁ PARA BAIXO ATÉ ÀS MÉTRICAS)
-    #param_grid = {
-    #'n_estimators': [50, 100, 150, 200],
-    #'max_depth': [5, 10, 20, None],
-    #'min_samples_split': [1, 2, 5, 10]
-    #}
+    param_grid = {
+    'n_estimators': [50, 100, 200],
+    'max_depth': [10, 20, None],
+    'min_samples_split': [2, 5, 10]
+    }
+    
+    grid_search_class = model_selection.GridSearchCV(estimator=RF_classif, param_grid=param_grid, cv=predefined_split, scoring='accuracy')
+    grid_search_class.fit(X_train_val, y_train_val_2)
+    results = pd.DataFrame(grid_search_class.cv_results_)
+    relevant_columns = ['param_n_estimators', 'param_max_depth', 'param_min_samples_split','mean_test_score', 'std_test_score', 'rank_test_score']
+    print(results[relevant_columns])
+    print("Best Parameters:", grid_search_class.best_params_)
+    print("Best Score:", grid_search_class.best_score_)
 
-    #grid_search = GridSearchCV(estimator=RF_classif, param_grid=param_grid, cv=5, scoring='accuracy')  # Usando validação cruzada dentro do grid search
-    #grid_search.fit(X_train_processed, y_train_2.values.ravel())
-    #print(f"Melhores parâmetros: {grid_search.best_params_}")
-    #best_rf = grid_search.best_estimator_
-    #y_pred_classif = best_rf.predict(X_test_processed)
-    #y_pred_classif_proba = best_rf.predict_proba(X_test_processed)
-
-    #accuracy = accuracy_score(y_test_2, y_pred_classif)
-    #print(f"Accuracy no conjunto de validação: {accuracy:.4f}")
+    best_class = grid_search_class.best_estimator_
+    y_pred_classif = best_class.predict(X_test_processed)
+    y_pred_classif_proba = best_class.predict_proba(X_test_processed)
 
     # RANDOM FOREST CLASSIFICATION MODEL - EVALUATION
+    print("RANDOM FOREST CLASSIFICATION MODEL - EVALUATION")
     #Accuracy
     accuracy = accuracy_score(y_test_2['efficiency_level'], y_pred_classif)
     print(f"Accuracy of Classification Model: {accuracy:.5f}")
+    #Balanced-Accuracy
+    balanced_accuracy = balanced_accuracy_score(y_test_2['efficiency_level'], y_pred_classif)
+    print(f"Balanced-accuracy of Classification Model: {balanced_accuracy:.5f}")
     #F1-Score
     f1 = f1_score(y_test_2['efficiency_level'], y_pred_classif, average='weighted')
     print(f"F1 Score of Classification Model: {f1:.5f}")
+    #Recall
+    recall = recall_score(y_test_2['efficiency_level'], y_pred_classif, average='weighted')
+    print(f"Recall: {recall:.5f}")  
+    #Precision
+    precision = precision_score(y_test_2['efficiency_level'], y_pred_classif, average='weighted')
+    print(f"Precision:{precision:.5f}")
     #AUC-ROC
     auc_roc = roc_auc_score(y_test_2['efficiency_level'], y_pred_classif_proba, multi_class='ovr', average='weighted')
     print(f"AUC-ROC of Classification Model: {auc_roc:.5f}")
@@ -67,31 +86,23 @@ if __name__ == "__main__":
 
     # RANDOM FOREST REGRESSION MODEL 
     RF_regressor = RandomForestRegressor()
-    RF_regressor.fit(X_train_processed, y_train_1.values.ravel())  
-    y_pred_reg = RF_regressor.predict(X_test_processed)
 
-    #visualizar os valores previstos e reais para comparar *APAGAR DEPOIS*
-    comparison_df = pd.DataFrame({
-    'Valor Real': y_test_1.values.ravel(),
-    'Valor Previsto': y_pred_reg,
-    'Erro': y_test_1.values.ravel() - y_pred_reg
-    })
-    print(comparison_df.head(30))
+    grid_search_reg = model_selection.GridSearchCV(estimator=RF_regressor, param_grid=param_grid, cv=predefined_split, scoring='neg_mean_squared_error')
+    grid_search_reg.fit(X_train_val, y_train_val_1)
+    results = pd.DataFrame(grid_search_reg.cv_results_)
+    relevant_columns = ['param_n_estimators', 'param_max_depth', 'param_min_samples_split','mean_test_score', 'std_test_score', 'rank_test_score']
+    print(results[relevant_columns])
+    print("Best Parameters:", grid_search_reg.best_params_)
+    print("Best Score:", grid_search_reg.best_score_)
 
+    best_class = grid_search_reg.best_estimator_
+    y_pred_reg = best_class.predict(X_test_processed)
 
     # RANDOM FOREST REGRESSION MODEL - EVALUATION
-    errors = y_test_1.values.ravel() - y_pred_reg
-    plt.hist(errors, bins=30)
-    plt.xlabel('Erro de Previsão')
-    plt.ylabel('Frequência')
-    plt.title('Distribuição dos Erros de Previsão')
-    plt.show()
-
-    mae = mean_absolute_error(y_test_1, y_pred_reg)
+    print("RANDOM FOREST REGRESSION MODEL - EVALUATION")
+    #Loss
     mse = mean_squared_error(y_test_1, y_pred_reg)
-    rmse = np.sqrt(mse)
-    r2 = r2_score(y_test_1, y_pred_reg)
-    print(f"Mean Absolute Error (MAE): {mae:.5f}")
     print(f"Mean Squared Error (MSE): {mse:.5f}")
-    print(f"RMSE (Root Mean Squared Error): {rmse:.5f}")
-    print(f"R² (R-squared): {r2:.5f}")
+    #R^2
+    r2 = r2_score(y_test_1, y_pred_reg)
+    print(f"R² (R-squared): {r2:.5f}")  
