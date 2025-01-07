@@ -88,6 +88,8 @@ def test_model(model, test_loader, num_classes, save_dir, load_dir):
 
     plt.savefig(f"{save_dir}/roc_curve.png")
 
+    weighted_auc = roc_auc_score(all_labels_onehot, np.array(all_probabilities), average='weighted')
+
     conf_matrix = confusion_matrix(all_class_labels, all_class_predictions)
     conf_matrix = conf_matrix.astype('float') / conf_matrix.sum(axis=1)[:, np.newaxis]
 
@@ -110,6 +112,7 @@ def test_model(model, test_loader, num_classes, save_dir, load_dir):
         "Test, Class - Precision": f"{precision:.4f}",
         "Test, Class - Recall": f"{recall:.4f}",
         "Test, Class - AUC-ROC": {key: f"{value:.4f}" for key, value in auc_roc.items()},
+        "Test, Class - Weighted AUC-ROC": f"{weighted_auc:.4f}"
     }
 
     metrics_file = os.path.join(save_dir, "metrics.json")
