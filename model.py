@@ -8,18 +8,16 @@ class SharedFeedForwardNN(nn.Module):
         
         self.shared_layer_1 = nn.Linear(input_dim, hidden_dim)
         self.shared_layer_2 = nn.Linear(hidden_dim, hidden_dim)
-        self.shared_layer_3 = nn.Linear(hidden_dim, hidden_dim // 2)
         self.dropout = nn.Dropout(p=dropout_rate)
         
-        self.regression_output = nn.Linear(hidden_dim // 2, 1)
-        self.classification_output = nn.Linear(hidden_dim // 2, num_classes)
+        self.regression_output = nn.Linear(hidden_dim, 1)
+        self.classification_output = nn.Linear(hidden_dim, num_classes)
         
     def forward(self, x):
 
-        x = torch.relu(self.shared_layer_1(x))
+        x = (self.shared_layer_1(x))
         x = torch.relu(self.shared_layer_2(x))
         x = self.dropout(x)
-        x = torch.relu(self.shared_layer_3(x))
         
         reg_output = self.regression_output(x)
         
