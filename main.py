@@ -22,7 +22,7 @@ class Parameters:
         self.categorical_cols = ['pv_module_type', 'hotspot', 'birddrop', 'soiling', 'junction_box']
         self.numerical_cols = ['affected_area', 'temperature', 'irradiance', 'Voc', 'Isc']
         self.num_epochs = 50
-        self.learning_rate = 1e-3
+        self.learning_rate = 1e-2
         self.weight_decay = 1e-5
         self.alfa = 0.5
         self.beta = 0.5
